@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from twilio.rest import Client
+from twilio.base.exceptions import TwilioRestException
 
 # Twilio configuration
 account_sid = 'AC37222357fd3567ea96149c9ee23c00e0'
@@ -33,8 +34,11 @@ def send_sms(phone_number, message):
             to=phone_number
         )
         print(f"Message sent to {phone_number}: SID {message.sid}")
-    except Exception as e:
-        print(f"Failed to send message to {phone_number}: {str(e)}")
+    except TwilioRestException as e:
+        if e.code == 21408:
+            print(f"Failed to send message to {phone_number}: Permission to send an SMS has not been enabled for this region.")
+        else:
+            print(f"Failed to send message to {phone_number}: {str(e)}")
 
 # Load the provided Excel file
 file_path = 'DATA/Leads.xlsx'  # Update this path if necessary
