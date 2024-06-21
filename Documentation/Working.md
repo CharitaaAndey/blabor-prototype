@@ -4,7 +4,7 @@
 
 This project is designed to automate the process of sending personalized, messages to business owners, encouraging them to register their own domain names. The messages are generated based on the provided data and should be using the appropriate platform for SMS communication.
 
-![Screenshot](./images/Screenshot.png)
+![Screenshot](../images/Screenshot.png)
 
 I learned to use Mailchimp in my academic project, but I wanted to explore more options. Upon exploring, I found several bulk messaging platforms, which I still need to research and work on. I have divided this project into three phases:
 
