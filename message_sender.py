@@ -1,15 +1,10 @@
 import pandas as pd
 import os
-import plivo
-from plivo.exceptions import PlivoRestError
+import requests
 
-# Plivo configuration
-auth_id = 'your_auth_id'
-auth_token = 'your_auth_token'
-plivo_phone_number = 'your_plivo_phone_number'
-
-# Initialize the Plivo client
-client = plivo.RestClient(auth_id, auth_token)
+# Google Analytics configuration
+measurement_id = 'G-GLBJ67ORKI'  # Replace with your actual Measurement ID
+api_secret = '3yO19NeRTWF7UJZ--oCVA'  # Replace with your actual API Secret
 
 # Function to generate a personalized, witty, and congratulatory message with a hyperlink
 def generate_message(owner_name, business_name):
@@ -22,41 +17,75 @@ def generate_message(owner_name, business_name):
                f"Don't miss out on this chance to shine! ✨\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message
+    return message, hyperlink
 
-# Function to send SMS using Plivo
-def send_sms(phone_number, message):
-    try:
-        response = client.messages.create(
-            src=plivo_phone_number,
-            dst=phone_number,
-            text=message
-        )
-        print(f"Message sent to {phone_number}: Message UUID {response.message_uuid}")
-    except PlivoRestError as e:
-        print(f"Failed to send message to {phone_number}: {str(e)}")
+# Function to send event data to Google Analytics
+def send_event_to_ga(client_id, event_name, params):
+    url = f"https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={api_secret}"
+    payload = {
+        "client_id": client_id,
+        "events": [{
+            "name": event_name,
+            "params": params
+        }]
+    }
+    response = requests.post(url, json=payload)
+    print(f"Response from GA for event '{event_name}': Status {response.status_code}, Text {response.text}")
+    return response.status_code, response.text
 
 # Load the provided Excel file
 file_path = 'DATA/Leads.xlsx'
 data = pd.read_excel(file_path)
 
-# Generate messages for each row and send SMS
+# Generate messages and track data
+events = []
 for index, row in data.iterrows():
     owner_name = row['Owner/Manager']
     business_name = row['Business Name']
     phone_number = row['Phone Number']
     
-    message = generate_message(owner_name, business_name)
+    message, hyperlink = generate_message(owner_name, business_name)
+    client_id = f"client_{index}"
     
-    # Send SMS
-    send_sms(phone_number, message)
+    # Track message generated event in Google Analytics
+    event_name = "message_generated"
+    params = {
+        "owner_name": owner_name,
+        "business_name": business_name,
+        "phone_number": phone_number,
+        "hyperlink": hyperlink
+    }
+    
+    status_code, response_text = send_event_to_ga(client_id, event_name, params)
+    if status_code == 204:
+        print(f"Event for {owner_name} tracked successfully.")
+    else:
+        print(f"Failed to track event for {owner_name}: {response_text}")
+    
+    # Simulate link click event
+    event_name = "link_click"
+    params = {
+        "owner_name": owner_name,
+        "business_name": business_name,
+        "phone_number": phone_number,
+        "hyperlink": hyperlink
+    }
+    
+    status_code, response_text = send_event_to_ga(client_id, event_name, params)
+    if status_code == 204:
+        print(f"Link click for {owner_name} tracked successfully.")
+    else:
+        print(f"Failed to track link click for {owner_name}: {response_text}")
+    
+    events.append(params)
 
 # Ensure the output directory exists
 output_dir = 'Output'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-# Save the data with messages to a new Excel file
+# Save the data with messages and events to a new Excel file
 output_file_path = os.path.join(output_dir, 'output_with_messages.xlsx')
-data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name']), axis=1)
+data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'])[0], axis=1)
+data['Event'] = events
 data.to_excel(output_file_path, index=False)
