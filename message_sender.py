@@ -1,23 +1,46 @@
 import pandas as pd
 import os
 import requests
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 
 # Google Analytics configuration
 measurement_id = 'G-GLBJ67ORKI'  # Replace with your actual Measurement ID
 api_secret = '3yO19NeRTWF7UJZ--oCVA'  # Replace with your actual API Secret
 
-# Function to generate a personalized, witty, and congratulatory message with a hyperlink
+# Bitly configuration
+bitly_access_token = 'YOUR_BITLY_ACCESS_TOKEN'  # Replace with your Bitly access token
+
+# Function to shorten a URL using Bitly
+def shorten_url(long_url):
+    headers = {
+        'Authorization': f'Bearer {bitly_access_token}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'long_url': long_url
+    }
+    response = requests.post('https://api-ssl.bitly.com/v4/shorten', json=data, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('link')
+    else:
+        print(f"Failed to shorten URL: {response.text}")
+        return long_url  # Return the original URL if shortening fails
+
+# Function to generate a personalized, witty, and congratulatory message with a shortened hyperlink
 def generate_message(owner_name, business_name):
     formatted_business_name = business_name.replace(' ', '+')
-    hyperlink = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
+    long_url = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
+    short_url = shorten_url(long_url)
     message = (f"Hi {owner_name},\n\n"
                f"🎉 Congratulations on taking the first step towards an even brighter future for {business_name}! 🎉\n\n"
                f"Imagine your business with its very own domain. It's time to make it official and stand out online! 🌟\n\n"
-               f"Click here to register your custom domain: {hyperlink}\n\n"
+               f"Click here to register your custom domain: {short_url}\n\n"
                f"Don't miss out on this chance to shine! ✨\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message, hyperlink
+    return message, short_url
 
 # Function to send event data to Google Analytics
 def send_event_to_ga(client_id, event_name, params):
@@ -44,7 +67,7 @@ for index, row in data.iterrows():
     business_name = row['Business Name']
     phone_number = row['Phone Number']
     
-    message, hyperlink = generate_message(owner_name, business_name)
+    message, short_url = generate_message(owner_name, business_name)
     client_id = f"client_{index}"
     
     # Track message generated event in Google Analytics
@@ -53,7 +76,7 @@ for index, row in data.iterrows():
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": hyperlink
+        "hyperlink": short_url
     }
     
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
@@ -68,7 +91,7 @@ for index, row in data.iterrows():
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": hyperlink
+        "hyperlink": short_url
     }
     
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
@@ -89,3 +112,28 @@ output_file_path = os.path.join(output_dir, 'output_with_messages.xlsx')
 data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'])[0], axis=1)
 data['Event'] = events
 data.to_excel(output_file_path, index=False)
+
+# Format the Excel file to wrap text and adjust column widths
+def format_excel_file(file_path):
+    wb = load_workbook(file_path)
+    ws = wb.active
+    
+    # Adjust column widths and wrap text
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter  # Get the column name
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
+        for cell in col:
+            cell.alignment = Alignment(wrap_text=True)
+    
+    wb.save(file_path)
+
+# Format the generated Excel file
+format_excel_file(output_file_path)
