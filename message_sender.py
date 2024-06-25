@@ -1,10 +1,13 @@
 import pandas as pd
 import os
 import requests
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 
 # Google Analytics configuration
-measurement_id = 'G-GLBJ67ORKI'
-api_secret = '3yO19NeRTWF7UJZ--oCVA'
+measurement_id = 'G-GLBJ67ORKI'  # Replace with your actual Measurement ID
+api_secret = '3yO19NeRTWF7UJZ--oCVA'  # Replace with your actual API Secret
 
 # Function to generate a personalized, witty, and congratulatory message with a hyperlink
 def generate_message(owner_name, business_name):
@@ -38,8 +41,8 @@ data = pd.read_excel(file_path)
 
 # Generate messages and track data
 events = []
-successful_events = 0
-failed_events = 0
+total_successful_events = 0
+total_failed_events = 0
 
 for index, row in data.iterrows():
     owner_name = row['Owner/Manager']
@@ -60,9 +63,9 @@ for index, row in data.iterrows():
     
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
     if status_code == 204:
-        successful_events += 1
+        total_successful_events += 1
     else:
-        failed_events += 1
+        total_failed_events += 1
     
     # Simulate link click event
     event_name = "link_click"
@@ -75,9 +78,9 @@ for index, row in data.iterrows():
     
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
     if status_code == 204:
-        successful_events += 1
+        total_successful_events += 1
     else:
-        failed_events += 1
+        total_failed_events += 1
     
     events.append(params)
 
@@ -92,5 +95,25 @@ data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], 
 data['Event'] = events
 data.to_excel(output_file_path, index=False)
 
-print(f"Total successful events: {successful_events // 2}")
-print(f"Total failed events: {failed_events // 2}")
+# Adjust column widths and text wrapping
+wb = load_workbook(output_file_path)
+ws = wb.active
+
+for col in ws.columns:
+    max_length = 0
+    column = col[0].column_letter  # Get the column name
+    for cell in col:
+        try:
+            if len(str(cell.value)) > max_length:
+                max_length = len(cell.value)
+        except:
+            pass
+    adjusted_width = (max_length + 2)
+    ws.column_dimensions[column].width = adjusted_width
+    for cell in col:
+        cell.alignment = Alignment(wrap_text=True)
+
+wb.save(output_file_path)
+
+print(f"Total successful events: {total_successful_events}")
+print(f"Total failed events: {total_failed_events}")

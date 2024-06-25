@@ -1,22 +1,36 @@
 import pandas as pd
+import os
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
+
+# Function to generate a new domain link
+def generate_new_domain_link(business_name):
+    formatted_business_name = business_name.replace(' ', '+')
+    new_hyperlink = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
+    return new_hyperlink
 
 # Function to generate a follow-up message for those who opened the link but didn't register
 def generate_follow_up_message_opened(owner_name, business_name):
+    new_hyperlink = generate_new_domain_link(business_name)
     message = (f"Hi {owner_name},\n\n"
                f"We noticed you took the first step by clicking on the link for {business_name}, but you haven't completed your domain registration yet. 🌟\n\n"
                f"Let's make it official and secure your domain today!\n\n"
+               f"Click here to register your custom domain: {new_hyperlink}\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message
+    return message, new_hyperlink
 
 # Function to generate a follow-up message for those who didn't open the link
 def generate_follow_up_message_not_opened(owner_name, business_name):
+    new_hyperlink = generate_new_domain_link(business_name)
     message = (f"Hi {owner_name},\n\n"
                f"We missed you! It looks like you haven't checked the link we sent for {business_name}. 🌟\n\n"
                f"Don't miss out on registering your custom domain. Click the link and make your business shine!\n\n"
+               f"Click here to register your custom domain: {new_hyperlink}\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message
+    return message, new_hyperlink
 
 # Load the output Excel file from message_sender.py
 file_path = 'Output/output_with_messages.xlsx'
@@ -27,7 +41,7 @@ opened_links = []
 not_opened_links = []
 
 for index, row in data.iterrows():
-    if row['Event']['link_click'] == 'Opened':
+    if row['Event'] == 'Opened':
         opened_links.append(row)
     else:
         not_opened_links.append(row)
@@ -37,18 +51,19 @@ df_not_opened = pd.DataFrame(not_opened_links)
 
 # Generate follow-up messages
 if not df_opened.empty:
-    df_opened['FollowUpMessage'] = df_opened.apply(
-        lambda row: generate_follow_up_message_opened(row['Owner/Manager'], row['Business Name']), axis=1)
+    df_opened['FollowUpMessage'], df_opened['NewHyperlink'] = zip(*df_opened.apply(
+        lambda row: generate_follow_up_message_opened(row['Owner/Manager'], row['Business Name']), axis=1))
 
 if not df_not_opened.empty:
-    df_not_opened['FollowUpMessage'] = df_not_opened.apply(
-        lambda row: generate_follow_up_message_not_opened(row['Owner/Manager'], row['Business Name']), axis=1)
+    df_not_opened['FollowUpMessage'], df_not_opened['NewHyperlink'] = zip(*df_not_opened.apply(
+        lambda row: generate_follow_up_message_not_opened(row['Owner/Manager'], row['Business Name']), axis=1))
 
-# Save the follow-up messages to new Excel files
+# Ensure the output directory exists
 output_dir = 'Output'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
+# Save the follow-up messages to new Excel files
 output_file_path_opened = os.path.join(output_dir, 'follow_up_opened.xlsx')
 output_file_path_not_opened = os.path.join(output_dir, 'follow_up_not_opened.xlsx')
 
@@ -56,5 +71,31 @@ if not df_opened.empty:
     df_opened.to_excel(output_file_path_opened, index=False)
 if not df_not_opened.empty:
     df_not_opened.to_excel(output_file_path_not_opened, index=False)
+
+# Adjust column widths and text wrapping for follow-up files
+def adjust_excel_formatting(file_path):
+    wb = load_workbook(file_path)
+    ws = wb.active
+
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter  # Get the column name
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
+        for cell in col:
+            cell.alignment = Alignment(wrap_text=True)
+
+    wb.save(file_path)
+
+if not df_opened.empty:
+    adjust_excel_formatting(output_file_path_opened)
+if not df_not_opened.empty:
+    adjust_excel_formatting(output_file_path_not_opened)
 
 print("Follow-up messages generated and saved.")
