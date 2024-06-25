@@ -2,45 +2,24 @@ import pandas as pd
 import os
 import requests
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
 # Google Analytics configuration
-measurement_id = 'G-GLBJ67ORKI'  # Replace with your actual Measurement ID
-api_secret = '3yO19NeRTWF7UJZ--oCVA'  # Replace with your actual API Secret
+measurement_id = 'G-GLBJ67ORKI'
+api_secret = '3yO19NeRTWF7UJZ--oCVA'
 
-# Bitly configuration
-bitly_access_token = 'YOUR_BITLY_ACCESS_TOKEN'  # Replace with your Bitly access token
-
-# Function to shorten a URL using Bitly
-def shorten_url(long_url):
-    headers = {
-        'Authorization': f'Bearer {bitly_access_token}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        'long_url': long_url
-    }
-    response = requests.post('https://api-ssl.bitly.com/v4/shorten', json=data, headers=headers)
-    if response.status_code == 200:
-        return response.json().get('link')
-    else:
-        print(f"Failed to shorten URL: {response.text}")
-        return long_url  # Return the original URL if shortening fails
-
-# Function to generate a personalized, witty, and congratulatory message with a shortened hyperlink
+# Function to generate a personalized, witty, and congratulatory message with a hyperlink
 def generate_message(owner_name, business_name):
     formatted_business_name = business_name.replace(' ', '+')
-    long_url = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
-    short_url = shorten_url(long_url)
+    hyperlink = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
     message = (f"Hi {owner_name},\n\n"
                f"🎉 Congratulations on taking the first step towards an even brighter future for {business_name}! 🎉\n\n"
                f"Imagine your business with its very own domain. It's time to make it official and stand out online! 🌟\n\n"
-               f"Click here to register your custom domain: {short_url}\n\n"
+               f"Click here to register your custom domain: {hyperlink}\n\n"
                f"Don't miss out on this chance to shine! ✨\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message, short_url
+    return message, hyperlink
 
 # Function to send event data to Google Analytics
 def send_event_to_ga(client_id, event_name, params):
@@ -53,8 +32,7 @@ def send_event_to_ga(client_id, event_name, params):
         }]
     }
     response = requests.post(url, json=payload)
-    print(f"Response from GA for event '{event_name}': Status {response.status_code}, Text {response.text}")
-    return response.status_code, response.text
+    return response.status_code == 204
 
 # Load the provided Excel file
 file_path = 'DATA/Leads.xlsx'
@@ -62,12 +40,15 @@ data = pd.read_excel(file_path)
 
 # Generate messages and track data
 events = []
+successful_events = set()
+failed_events = set()
+
 for index, row in data.iterrows():
     owner_name = row['Owner/Manager']
     business_name = row['Business Name']
     phone_number = row['Phone Number']
     
-    message, short_url = generate_message(owner_name, business_name)
+    message, hyperlink = generate_message(owner_name, business_name)
     client_id = f"client_{index}"
     
     # Track message generated event in Google Analytics
@@ -76,14 +57,10 @@ for index, row in data.iterrows():
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": short_url
+        "hyperlink": hyperlink
     }
     
-    status_code, response_text = send_event_to_ga(client_id, event_name, params)
-    if status_code == 204:
-        print(f"Event for {owner_name} tracked successfully.")
-    else:
-        print(f"Failed to track event for {owner_name}: {response_text}")
+    message_generated_success = send_event_to_ga(client_id, event_name, params)
     
     # Simulate link click event
     event_name = "link_click"
@@ -91,16 +68,17 @@ for index, row in data.iterrows():
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": short_url
+        "hyperlink": hyperlink
     }
     
-    status_code, response_text = send_event_to_ga(client_id, event_name, params)
-    if status_code == 204:
-        print(f"Link click for {owner_name} tracked successfully.")
-    else:
-        print(f"Failed to track link click for {owner_name}: {response_text}")
+    link_click_success = send_event_to_ga(client_id, event_name, params)
     
-    events.append(params)
+    if link_click_success and message_generated_success:
+        events.append(f"Link click tracked for {business_name}: opened")
+        successful_events.add(business_name)
+    else:
+        events.append(f"Link click tracked for {business_name}: not opened")
+        failed_events.add(business_name)
 
 # Ensure the output directory exists
 output_dir = 'Output'
@@ -128,7 +106,7 @@ def format_excel_file(file_path):
                     max_length = len(cell.value)
             except:
                 pass
-        adjusted_width = (max_length + 2)
+        adjusted_width = min((max_length + 2), 30)  # Reduce the width of the message column
         ws.column_dimensions[column].width = adjusted_width
         for cell in col:
             cell.alignment = Alignment(wrap_text=True)
@@ -137,3 +115,12 @@ def format_excel_file(file_path):
 
 # Format the generated Excel file
 format_excel_file(output_file_path)
+
+# Print summary of events
+print(f"Total successful events: {len(successful_events)}")
+print(f"Total failed events: {len(failed_events)}")
+
+if failed_events:
+    print("\nFailed events:")
+    for event in failed_events:
+        print(event)
