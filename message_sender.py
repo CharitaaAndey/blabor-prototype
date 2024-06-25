@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import requests
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
 # Google Analytics configuration
@@ -33,16 +32,16 @@ def send_event_to_ga(client_id, event_name, params):
         }]
     }
     response = requests.post(url, json=payload)
-    return response.status_code, response.text
+    return response.status_code == 204
 
 # Load the provided Excel file
-file_path = 'DATA/Leads.xlsx'
+file_path = 'DATA/Leads.xlsx'  # Ensure this path is correct
 data = pd.read_excel(file_path)
 
 # Generate messages and track data
 events = []
-successful_events = []
-failed_events = []
+successful_events = set()
+failed_events = set()
 
 for index, row in data.iterrows():
     owner_name = row['Owner/Manager']
@@ -61,11 +60,7 @@ for index, row in data.iterrows():
         "hyperlink": hyperlink
     }
     
-    status_code, response_text = send_event_to_ga(client_id, event_name, params)
-    if status_code == 204:
-        successful_events.append(f"Message generated for {business_name}")
-    else:
-        failed_events.append(f"Failed to track message for {business_name}: {response_text}")
+    message_generated_success = send_event_to_ga(client_id, event_name, params)
     
     # Simulate link click event
     event_name = "link_click"
@@ -76,13 +71,14 @@ for index, row in data.iterrows():
         "hyperlink": hyperlink
     }
     
-    status_code, response_text = send_event_to_ga(client_id, event_name, params)
-    if status_code == 204:
-        successful_events.append(f"Link click tracked for {business_name}")
-    else:
-        failed_events.append(f"Failed to track link click for {business_name}: {response_text}")
+    link_click_success = send_event_to_ga(client_id, event_name, params)
     
-    events.append(params)
+    if link_click_success and message_generated_success:
+        events.append(f"Link click tracked for {business_name}: opened")
+        successful_events.add(business_name)
+    else:
+        events.append(f"Link click tracked for {business_name}: not opened")
+        failed_events.add(business_name)
 
 # Ensure the output directory exists
 output_dir = 'Output'
@@ -110,7 +106,7 @@ def format_excel_file(file_path):
                     max_length = len(cell.value)
             except:
                 pass
-        adjusted_width = (max_length + 2)
+        adjusted_width = min((max_length + 2), 30)  # Reduce the width of the message column
         ws.column_dimensions[column].width = adjusted_width
         for cell in col:
             cell.alignment = Alignment(wrap_text=True)
