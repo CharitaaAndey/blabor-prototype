@@ -1,5 +1,8 @@
 import pandas as pd
 import os
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 
 # Function to generate a new domain link
 def generate_new_domain_link(business_name):
@@ -68,5 +71,31 @@ if not df_opened.empty:
     df_opened.to_excel(output_file_path_opened, index=False)
 if not df_not_opened.empty:
     df_not_opened.to_excel(output_file_path_not_opened, index=False)
+
+# Adjust column widths and text wrapping for follow-up files
+def adjust_excel_formatting(file_path):
+    wb = load_workbook(file_path)
+    ws = wb.active
+
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter  # Get the column name
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
+        for cell in col:
+            cell.alignment = Alignment(wrap_text=True)
+
+    wb.save(file_path)
+
+if not df_opened.empty:
+    adjust_excel_formatting(output_file_path_opened)
+if not df_not_opened.empty:
+    adjust_excel_formatting(output_file_path_not_opened)
 
 print("Follow-up messages generated and saved.")
