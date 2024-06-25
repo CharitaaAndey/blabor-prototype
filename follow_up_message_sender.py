@@ -43,10 +43,13 @@ df_opened_not_registered = pd.DataFrame(opened_not_registered)
 df_not_opened = pd.DataFrame(not_opened)
 
 # Generate follow-up messages for each group
-df_opened_not_registered['FollowUpMessage'] = df_opened_not_registered.apply(
-    lambda row: generate_follow_up_message_opened(row['Owner/Manager'], row['Business Name']), axis=1)
-df_not_opened['FollowUpMessage'] = df_not_opened.apply(
-    lambda row: generate_follow_up_message_not_opened(row['Owner/Manager'], row['Business Name']), axis=1)
+if not df_opened_not_registered.empty:
+    df_opened_not_registered['FollowUpMessage'] = df_opened_not_registered.apply(
+        lambda row: generate_follow_up_message_opened(row['Owner/Manager'], row['Business Name']), axis=1)
+
+if not df_not_opened.empty:
+    df_not_opened['FollowUpMessage'] = df_not_opened.apply(
+        lambda row: generate_follow_up_message_not_opened(row['Owner/Manager'], row['Business Name']), axis=1)
 
 # Ensure the output directory exists
 output_dir = 'Output'
@@ -57,8 +60,11 @@ if not os.path.exists(output_dir):
 output_file_opened_not_registered = os.path.join(output_dir, 'follow_up_opened_not_registered.xlsx')
 output_file_not_opened = os.path.join(output_dir, 'follow_up_not_opened.xlsx')
 
-df_opened_not_registered.to_excel(output_file_opened_not_registered, index=False)
-df_not_opened.to_excel(output_file_not_opened, index=False)
+if not df_opened_not_registered.empty:
+    df_opened_not_registered.to_excel(output_file_opened_not_registered, index=False)
+
+if not df_not_opened.empty:
+    df_not_opened.to_excel(output_file_not_opened, index=False)
 
 # Format the Excel files to wrap text and adjust column widths
 def format_excel_file(file_path):
@@ -83,7 +89,10 @@ def format_excel_file(file_path):
     wb.save(file_path)
 
 # Format the generated Excel files
-format_excel_file(output_file_opened_not_registered)
-format_excel_file(output_file_not_opened)
+if not df_opened_not_registered.empty:
+    format_excel_file(output_file_opened_not_registered)
+
+if not df_not_opened.empty:
+    format_excel_file(output_file_not_opened)
 
 print("Follow-up messages generated and saved successfully.")
