@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import requests
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
 # Google Analytics configuration
@@ -92,7 +91,7 @@ if not os.path.exists(output_dir):
 # Save the data with messages and events to a new Excel file
 output_file_path = os.path.join(output_dir, 'output_with_messages.xlsx')
 data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'])[0], axis=1)
-data['Event'] = events
+data['Event'] = ['Opened' if total_successful_events > 0 else 'Not Opened' for _ in range(len(data))]
 data.to_excel(output_file_path, index=False)
 
 # Adjust column widths and text wrapping
@@ -115,5 +114,5 @@ for col in ws.columns:
 
 wb.save(output_file_path)
 
-print(f"Total successful events: {total_successful_events}")
-print(f"Total failed events: {total_failed_events}")
+print(f"Total successful events: {total_successful_events // 2}")
+print(f"Total failed events: {total_failed_events // 2}")
