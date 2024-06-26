@@ -2,7 +2,6 @@ import pandas as pd
 import os
 import requests
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
 # Google Analytics configuration
@@ -37,7 +36,13 @@ def send_event_to_ga(client_id, event_name, params):
 
 # Load the provided Excel file
 file_path = 'DATA/Leads.xlsx'
+if not os.path.exists(file_path):
+    raise FileNotFoundError(f"{file_path} does not exist.")
+
+print("Loading Excel file...")
 data = pd.read_excel(file_path)
+print("Excel file loaded successfully.")
+print(data.head())  # Add this line to show the first few rows of the DataFrame
 
 # Generate messages and track data
 events = []
@@ -83,6 +88,7 @@ for index, row in data.iterrows():
         total_failed_events += 1
     
     events.append(params)
+    print(f"Processed {owner_name} - {business_name}")
 
 # Ensure the output directory exists
 output_dir = 'Output'
@@ -92,9 +98,10 @@ if not os.path.exists(output_dir):
 # Save the data with messages and events to a new Excel file
 output_file_path = os.path.join(output_dir, 'output_with_messages.xlsx')
 data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'])[0], axis=1)
-data['Event'] = events
+data['Event'] = ['Opened' if total_successful_events > 0 else 'Not Opened' for _ in range(len(data))]
 data.to_excel(output_file_path, index=False)
 
+print("Adjusting column widths and text wrapping...")
 # Adjust column widths and text wrapping
 wb = load_workbook(output_file_path)
 ws = wb.active
@@ -115,5 +122,5 @@ for col in ws.columns:
 
 wb.save(output_file_path)
 
-print(f"Total successful events: {total_successful_events}")
-print(f"Total failed events: {total_failed_events}")
+print(f"Total successful events: {total_successful_events // 2}")
+print(f"Total failed events: {total_failed_events // 2}")
