@@ -8,18 +8,16 @@ from openpyxl.styles import Alignment
 measurement_id = 'G-GLBJ67ORKI'  # Replace with your actual Measurement ID
 api_secret = '3yO19NeRTWF7UJZ--oCVA'  # Replace with your actual API Secret
 
-# Function to generate a personalized, witty, and congratulatory message with a hyperlink
-def generate_message(owner_name, business_name):
-    formatted_business_name = business_name.replace(' ', '+')
-    hyperlink = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={formatted_business_name}&plid=487856&itc=slp_rstore"
-    message = (f"Hi {owner_name},\n\n"
-               f"🎉 Congratulations on taking the first step towards an even brighter future for {business_name}! 🎉\n\n"
-               f"Imagine your business with its very own domain. It's time to make it official and stand out online! 🌟\n\n"
-               f"Click here to register your custom domain: {hyperlink}\n\n"
-               f"Don't miss out on this chance to shine! ✨\n\n"
+# Function to generate a personalized message
+def generate_message(owner_name, business_name, domain_name):
+    message = (f"Hi {owner_name}! ,\n\n"
+               f"This message is in regards to your recent business registration of {business_name}. "
+               f"Your domain name, {domain_name} is currently available. "
+               f"Click the following link to register your domain name.\n\n"
+               f"{domain_name}\n\n"
                f"Best regards,\n"
                f"Blabor Team")
-    return message, hyperlink
+    return message
 
 # Function to send event data to Google Analytics
 def send_event_to_ga(client_id, event_name, params):
@@ -36,6 +34,7 @@ def send_event_to_ga(client_id, event_name, params):
 
 # Load the provided Excel file
 file_path = 'DATA/Leads.xlsx'
+<<<<<<< HEAD
 if not os.path.exists(file_path):
     raise FileNotFoundError(f"{file_path} does not exist.")
 
@@ -43,6 +42,11 @@ print("Loading Excel file...")
 data = pd.read_excel(file_path)
 print("Excel file loaded successfully.")
 print(data.head())  # Add this line to show the first few rows of the DataFrame
+=======
+print("Loading Excel file...")
+data = pd.read_excel(file_path)
+print("Excel file loaded successfully.")
+>>>>>>> Sending_Message
 
 # Generate messages and track data
 events = []
@@ -53,42 +57,60 @@ for index, row in data.iterrows():
     owner_name = row['Owner/Manager']
     business_name = row['Business Name']
     phone_number = row['Phone Number']
-    
-    message, hyperlink = generate_message(owner_name, business_name)
+    domain_name = f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={business_name.replace(' ', '+')}&plid=487856&itc=slp_rstore"
+
+    message = generate_message(owner_name, business_name, domain_name)
     client_id = f"client_{index}"
-    
+
     # Track message generated event in Google Analytics
     event_name = "message_generated"
     params = {
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": hyperlink
+        "hyperlink": domain_name
     }
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> Sending_Message
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
     if status_code == 204:
         total_successful_events += 1
     else:
         total_failed_events += 1
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> Sending_Message
     # Simulate link click event
     event_name = "link_click"
     params = {
         "owner_name": owner_name,
         "business_name": business_name,
         "phone_number": phone_number,
-        "hyperlink": hyperlink
+        "hyperlink": domain_name
     }
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> Sending_Message
     status_code, response_text = send_event_to_ga(client_id, event_name, params)
     if status_code == 204:
         total_successful_events += 1
     else:
         total_failed_events += 1
+<<<<<<< HEAD
     
     events.append(params)
     print(f"Processed {owner_name} - {business_name}")
+=======
+
+    events.append(params)
+>>>>>>> Sending_Message
 
 # Ensure the output directory exists
 output_dir = 'Output'
@@ -97,12 +119,21 @@ if not os.path.exists(output_dir):
 
 # Save the data with messages and events to a new Excel file
 output_file_path = os.path.join(output_dir, 'output_with_messages.xlsx')
+<<<<<<< HEAD
 data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'])[0], axis=1)
 data['Event'] = ['Opened' if total_successful_events > 0 else 'Not Opened' for _ in range(len(data))]
 data.to_excel(output_file_path, index=False)
 
 print("Adjusting column widths and text wrapping...")
 # Adjust column widths and text wrapping
+=======
+data['Message'] = data.apply(lambda row: generate_message(row['Owner/Manager'], row['Business Name'], f"https://www.secureserver.net/products/domain-registration/find/?domainToCheck={row['Business Name'].replace(' ', '+')}&plid=487856&itc=slp_rstore"), axis=1)
+data['Event'] = events
+data.to_excel(output_file_path, index=False)
+
+# Adjust column widths and text wrapping
+print("Adjusting column widths and text wrapping...")
+>>>>>>> Sending_Message
 wb = load_workbook(output_file_path)
 ws = wb.active
 
